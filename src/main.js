@@ -5,6 +5,9 @@ import Routes from "./routes";
 import * as firebase from 'firebase';
 import ElementUI from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
+import VueLocalStorage from 'vue-localstorage'
+import locale from 'element-ui/lib/locale/lang/en'
+
 
 // Initialize Firebase
 let config = {
@@ -21,7 +24,11 @@ Vue.prototype.$firebase = firebase.initializeApp(config);
 Vue.prototype.$firebase_basic = firebase;
 
 Vue.use(VueRouter);
-Vue.use(ElementUI);
+Vue.use(ElementUI, { locale })
+Vue.use(VueLocalStorage, {
+  name: 'ls',
+  bind: true //created computed members from your variable declarations
+});
 
 // initialize router
 const router = new VueRouter({
