@@ -7,11 +7,10 @@
     justify-content: center;
     align-items: center;" >
         <div  id="marginAuto">
-          <p class="largefont" align="center">TIMETABLE</p>
+          <p class="largefont" align="center">BETTER TIMETABLE</p>
           <div align="center">
-            <p align="center" class="mediumlargefont">Please enter course code and university to search</p>
-            <el-input placeholder="Input: WIA1002,UM" style="width: 300px"></el-input>
-            <el-button type="primary" icon="el-icon-search">Search</el-button>
+            <p align="center" class="mediumlargefont">Please enter course code or university to search</p>
+            <el-input placeholder="Search: WIA1002,UM" style="width: 300px" v-model="search"></el-input>
           </div>
           <div v-for="df in showing">
             <el-row>
@@ -25,6 +24,7 @@
           <div class="block" align="center" style="margin-top: 20px">
             <el-pagination class="mediumfont"
               @current-change="handleCurrentChange"
+              :current-page.sync="currentPage"
               :page-size="3"
               layout="total, prev, pager, next"
               :total="total" style="background-color: #cceeff">
@@ -36,20 +36,21 @@
       <p class="paddingUp"></p>
       <p class="paddingUp"></p>
       <div style="height: 100vh;background-color: #e6f7ff" class="paddingUp">
-        <p align="center" class="mediumlargefont  paddingUp">If you have timetable that is not in above, feel free to upload!</p>
+        <p align="center" class="mediumlargefont  paddingUp">Want to be part of us to help more students?</p>
+        <p align="center" class="mediumlargefont">Upload the data that you have created!</p>
         <div align="center" class="paddingDown">
           <input
             @change="onFileChange"  accept=".json" type="file" name="file" id="file" class="inputfile" align="center" style="display: none;">
-          <label for="file">Choose a file</label>
+          <label for="file">Upload</label>
         </div>
         <div align="center">
-          <el-button type="primary" align="center" v-on:click="goGenerator">Or..How about making a new one?</el-button>
+          <el-button type="primary" align="center" v-on:click="goGenerator">Want to create data for your university?</el-button>
         </div>
       </div>
 
       <!--import-->
       <div style="height: 100vh; background-color: #ffffff">
-        <p align="center" class="mediumlargefont  paddingUp">Import your timetable here!</p>
+        <p align="center" class="mediumlargefont  paddingUp">Start Managing Your Timetable.</p>
         <div align="center">
           <el-select v-model="filter_code" id="selector1" placeholder="Course Code" class="tabButton smallfont">
             <el-option
@@ -67,7 +68,7 @@
               :value="item.group">
             </el-option>
           </el-select>
-          <el-button type="primary" size="medium" v-on:click="chooseTime">Import</el-button>
+          <el-button type="primary" size="medium" v-on:click="chooseTime">I want this slot</el-button>
         </div>
 
         <div class="mediumfont paddingUp">
@@ -86,20 +87,15 @@
 
       <!--export-->
       <div style="height:100vh; background-color: #e6f7ff" class="paddingUp">
-        <p class="mediumlargefont" align="center">Export Your Timetable</p>
+        <p class="mediumlargefont" align="center">List of Time Slots:</p>
         <div class="smallfont tab">
-          <p class="mediumfont paddingUp">List of Timetable:</p>
-          <p>1. WIA1002 G1 Dr Su Moon Ting 11:00a.m.-01:00p.m. Tuesday</p>
-          <p>2. WIA1003 G1 Dr Emran bin Tamil 09:00a.m.-11:00a.m. Tuesday</p>
-          <p>3. WIA1004 G1 Dr Erma 02:00p.m.-04:00p.m. Tuesday</p>
-          <p>4. WIA1005 G1 Dr Ang Tang Foong 09:00a.m.-11:00a.m. Monday</p>
-          <p>5. GIG1003 G8 Dr Ponmalar 02:00p.m.-04:00p.m. Wednesday</p>
-          <p>6. GIG1004 G40 Dr Aimi 03:00p.m.-04:00p.m. Thursday</p>
-          <p>7. GIG1005 G5 Dr Aznul bin Abdrul Qalid 04:00p.m.-06:00p.m. Monday</p>
+          <div v-for="(c, key) in chosen_groups">
+            <p v-for="item in c"><i class="el-icon-caret-right"></i> {{ key }} G{{ item.group }}({{ item.types }}) {{ item.lecturerCode }} {{ item.start }}-{{ item.end }}</p>
+          </div>
         </div>
         <div class="mediumfont paddingUp" align="center">
           <p>Your Timetable Is Ready To Go!</p>
-          <el-button type="primary" size="medium">Download</el-button>
+          <el-button type="primary" size="medium" v-on:click="downloadFile">Export in JSON format</el-button>
         </div>
       </div>
     </div>
@@ -111,6 +107,7 @@
       name: "main-page",
       data(){
         return{
+          search: "",
           tableData3: [{
             time:'0800-0900', MON: '', TUE: '', WED: '', THU: '', FRI: '',
           }, {
@@ -159,12 +156,20 @@
           },
           taken: [],
           tempArr: [],
-          showing: []
+          currentPage: 1
         }
       },
       computed:{
         total: function(){
-          return this.database_files.length;
+          let temp = this.database_files.filter((v)=>{
+            return v.toLowerCase().match(this.search.toLowerCase());
+          });
+          return temp.length;
+        },
+        showing: function(){
+          return this.database_files.filter((v)=>{
+            return v.toLowerCase().match(this.search.toLowerCase());
+          }).slice(this.currentPage*3-3, this.currentPage*3);
         },
         available: function(){
           // filter_code = WIA1001 // first filter
@@ -205,14 +210,73 @@
         this.total = this.database_files.length;
         this.$ls.get("lecturers", {});
         this.$ls.get("subjects", {});
-        this.showing = this.database_files.slice(0, 3);
       },
       methods:{
-        displayLecturerInfo: function(){
+        downloadFile: function(){
+          var element = document.createElement('a');
+          element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.chosen_groups)));
+          element.setAttribute('download', "yourLovelyTimetable.txt");
 
+          element.style.display = 'none';
+          document.body.appendChild(element);
+
+          element.click();
+
+          document.body.removeChild(element);
+        },
+        displayLecturerInfo: function(row, col, cell, ev){
+          if(cell.textContent !== "") this.openModal(cell.textContent);
+        },
+        openModal: function(cell){
+          let crt = cell.substring(cell.lastIndexOf(" ") + 1);
+          let code = cell.substring(0, cell.indexOf(" "));
+          let type = cell.substring(cell.indexOf("(")+1, cell.indexOf(")"));
+          const h = this.$createElement;
+          if(crt === "" || !this.lecturers[crt]){
+            this.$msgbox({
+              title: 'Lecturer Information',
+              message: h('p', null, [
+                h('span', null, 'Lecturer Info Not Available')
+              ]),
+              showCancelButton: true,
+              confirmButtonText: 'Remove this slot',
+              cancelButtonText: 'Cancel',
+              beforeClose: (action, instance, done) => {
+                if (action === 'confirm') {
+                  this.removeData(code, type);
+                  done();
+                }
+                else{
+                  done();
+                }
+              }
+            });
+          }
+          else{
+            this.$msgbox({
+              title: 'Lecturer Information',
+              message: h('p', null, [
+                h('h2', null, 'Lecturer code : ' + crt + "\n"),
+                h('h2', null, 'Lecturer name : ' + this.lecturers[crt].name + "\n"),
+                h('h2', null, 'Lecturer cv : ' + this.lecturers[crt].cv),
+              ]),
+              showCancelButton: true,
+              confirmButtonText: 'Remove this slot',
+              cancelButtonText: 'Cancel',
+              beforeClose: (action, instance, done) => {
+                if (action === 'confirm') {
+                  this.removeData(code, type);
+                  done();
+                }
+                else{
+                  done();
+                }
+              }
+            });
+          }
         },
         handleCurrentChange(val) {
-          this.showing = this.database_files.slice(val*3-3, val*3);
+          // this.showing = this.database_files.slice(val*3-3, val*3);
         },
         chooseTime: function(){
           if(this.filter_code === "" || this.filter_code === "Please Select" || this.selected_group === "" || this.selected_group === "Please Select") return;
@@ -228,11 +292,59 @@
           // easiest rounding algorithm
           let timeStart = temp.start.substring(3, temp.start.indexOf("."));
           let timeEnd = temp.end.substring(3, temp.end.indexOf("."));
-          this.occupied_time[temp.start.substring(0, 3)].push(timeStart);
-          this.occupied_time[temp.start.substring(0, 3)].push(timeEnd);
+          while(timeStart <= timeEnd){
+            this.occupied_time[temp.start.substring(0, 3)].push(timeStart);
+            timeStart++;
+          }
           this.filter_code = "Please Select";
           this.selected_group  = "Please Select";
-
+          this.updateTimetable();
+        },
+        updateTimetable: function(){
+          this.tableData3= [{
+            time:'0800-0900', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          }, {
+            time:'0900-1000', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1000-1100', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          }, {
+            time:'1100-1200', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          }, {
+            time:'1200-1300', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1300-1400', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1400-1500', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1500-1600', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1600-1700', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1700-1800', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1800-1900', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'1900-2000', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'2000-2100', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          },{
+            time:'2100-2200', MON: '', TUE: '', WED: '', THU: '', FRI: '',
+          }];
+          for(let subject in this.chosen_groups){
+            if(this.chosen_groups.hasOwnProperty(subject)){
+              for(let i=0; i<this.chosen_groups[subject].length; i++){
+                let crt_group = this.chosen_groups[subject][i];
+                let info = subject + " " + "G" + crt_group.group + "(" + crt_group.types + ")" + crt_group.location + " " + crt_group.lecturerCode;
+                let date = crt_group.start.substring(0, 3);
+                let startTime = crt_group.start.substring(3, crt_group.start.indexOf("."));
+                let endTime = crt_group.end.substring(3, crt_group.end.indexOf("."));
+                while(startTime <= endTime){
+                  this.tableData3[startTime-8][date] = info;
+                  startTime++;
+                }
+              }
+            }
+          }
         },
         // importData: function(){
         //   if(this.file2.name){
@@ -269,8 +381,30 @@
         //     };
         //   }
         // },
-        removeData: function(){
-
+        removeData: function(code, type){
+          let counter = 0;
+          let date = "";
+          let startTime = 0;
+          let endTime = 0;
+          for(var i=0; i<this.chosen_groups[code].length; i++){
+            if(this.chosen_groups[code][i].types === type){
+              date = this.chosen_groups[code][i].start.substring(0, 3);
+              startTime = this.chosen_groups[code][i].start.substring(3, this.chosen_groups[code][i].start.indexOf("."));
+              endTime = this.chosen_groups[code][i].end.substring(3, this.chosen_groups[code][i].end.indexOf("."));
+              counter = i;
+              break;
+            }
+          }
+          this.chosen_groups[code].splice(counter, 1);
+          if(this.chosen_groups[code].length == 0){
+            delete this.chosen_groups[code];
+          }
+          while(startTime <= endTime){
+            var index = this.occupied_time[date].indexOf(startTime);
+            this.occupied_time[date].splice(index, 1);
+            startTime++;
+          }
+          this.updateTimetable();
         },
         downloadData: function(df){
           let storage = this.$firebase_basic.storage().ref("download_list/" + df);
@@ -298,6 +432,10 @@
                       cv: x[i].cv
                     };
                   }
+                  self.$message({
+                    message: 'Successfully added the data!',
+                    type: 'success'
+                  });
                 }
                 else{
                   var index = df.indexOf("_");
@@ -314,6 +452,10 @@
                     });
                   }
                   if(self.keys.indexOf(courseCode) === -1) self.keys.push(courseCode);
+                  self.$message({
+                    message: 'Successfully added the data!',
+                    type: 'success'
+                  });
                 }
               };
             };
@@ -355,6 +497,10 @@
                 this.$firebase_basic.database().ref("database_files").set(this.temp);
                 });
               });
+            this.$message({
+              message: 'Thank you so much for updating our database!',
+              type: 'success'
+            });
             }
         }
       }
